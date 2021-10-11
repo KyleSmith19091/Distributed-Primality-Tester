@@ -1,4 +1,6 @@
 #include <iostream>
+#include <thread>
+#include <vector>
 
 #include "../include/Client.hpp"
 #include "../include/Server.hpp"
@@ -11,6 +13,11 @@ int main(){
     Server server;
     Client client;
     PrimalityTester tester;
+
+    const auto processor_count = std::thread::hardware_concurrency();
+    std::vector<std::thread> threadPool;
+
+    server.startServer();
 
     return 0;
 }

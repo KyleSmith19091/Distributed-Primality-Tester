@@ -1,13 +1,26 @@
 #include "../../include/Client.hpp"
-#include <sys/socket.h>
 
 Client::Client() {
+    clientSocket = -1;
 }
 
 Client::~Client() {}
 
 // Connect client socket to the server socket address
 void Client::connectToServer() {
+
+    createSocket();
+
+    if((connect(clientSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0)) {
+        std::cout << Log::Critical() << "Could not connect to Server\n";
+        exit(EXIT_FAILURE);
+    };
+
+    std::cout << Log::Info() << "Connected to server!\n";
+}
+
+void Client::createSocket() {
+    // Create socket
     if((clientSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         std::cout << Log::Error() << "Could not create Client Socket!\n";
     }
@@ -25,20 +38,13 @@ void Client::connectToServer() {
     }
 
     std::cout << Log::Info() << "Done Creating a Client Socket!\n";
-
-    if((connect(clientSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0)) {
-        std::cout << Log::Critical() << "Could not connect to Server\n";
-        exit(EXIT_FAILURE);
-    };
 }
 
 // Sending string data to server
 void Client::sendMessageToServer(const std::string& message) {
-    // Before sending data, connect to the server's socket
     connectToServer();
-    send(clientSocket, message.c_str(), message.length(), 0);
+    write(clientSocket, message.c_str(), message.length());
     std::cout << Log::Info() << "Message sent to Server\n";
-    std::cout << Log::Info() << "Received from server: " << readMessageFromServer() << "\n";
 }
 
 // Reading string data from server

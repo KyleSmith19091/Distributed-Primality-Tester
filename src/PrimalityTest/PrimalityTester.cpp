@@ -7,6 +7,7 @@ PrimalityTester::PrimalityTester() {
 PrimalityTester::~PrimalityTester() {
 }
 
+// Primality test done using Fermat's Little Theorem => a^p-1 === 1mod(p)
 bool PrimalityTester::isPrime(std::int_fast64_t prime, const std::int_fast64_t& maxIterations = 20) {
     if(prime == 1) {
         return false;

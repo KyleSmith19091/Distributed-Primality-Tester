@@ -1,9 +1,7 @@
 #include "../../include/Server.hpp"
+#include <Logging/Logger.hpp>
 
 Server::Server() {
-
-    // Register signal handler
-    signal(SIGINT,signalHandler);
     
     // Create Socket file descriptor 
     if ((serverFD = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -11,11 +9,18 @@ Server::Server() {
         exit(EXIT_FAILURE);
     }
 
+    int opt = 1;
+
+    // Set Server socket to allow for multiple connections
+    if(setsockopt(serverFD, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt)) < 0) {
+        std::cout << Log::Error() << "Could not set socket option to accept multiple client connections\n";
+        exit(EXIT_FAILURE);
+    }
+
     // Define socket attributes
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(this->PORT);
-
     memset(address.sin_zero, '\0', sizeof address.sin_zero);
     
     // Bind socket to localhost and port
@@ -30,46 +35,25 @@ Server::Server() {
         exit(EXIT_FAILURE);
     }
 
-    std::cout << Log::Info() << "Server Sokcet Done!\n";
+    std::cout << Log::Info() << "Server Sokcet Creation Done!\n";
+    std::cout << Log::Info() << "Waiting for connections...\n";
 }
 
 Server::~Server() {
     std::cout << Log::Warning() << "Destructing Server\n";
 }
 
-void Server::signalHandler(int signalNumber) {
-    switch (signalNumber) {
-        case SIGABRT:
-            std::cout << Log::Warning() << "Aborting Program\n";
-            exit(EXIT_SUCCESS);
-            break;
-
-        case 2:
-            std::cout << Log::Warning() << "Exiting Program\n";
-            exit(EXIT_SUCCESS);
-            break;
-
-        case SIGTERM:
-            std::cout << Log::Warning() << "Terminating Program\n";
-            exit(EXIT_SUCCESS);
-            break;
-
-        default:
-            std::cout << Log::Critical() << "Strange signal received\n";
-            exit(EXIT_FAILURE);
-    }
-}
-
 std::string Server::readDataFromClient(const int& newSocket) {
-    std::cout << Log::Info() << "Received Data From Client\n";
     char buffer[30000] = {0};
-    read(newSocket, buffer, 30000);
-    return std::string(buffer);
+    int inputLength = read(newSocket, buffer, 30000);
+    return inputLength > 0 ? std::string(buffer) : std::string("");
 }
 
 void Server::writeDataToClient(const int& newSocket, const std::string& writeData) {
     std::cout << Log::Info() << "Writing Data to Client\n";
-    write(newSocket, writeData.c_str(), writeData.length());
+    write(newSocket, writeData.c_str(), writeData.length()) < 0 ?
+        std::cout << Log::Error() << "Could not write data to client\n" :
+        std::cout << Log::Info() << "Data Sent to client\n";
 }
 
 void Server::startServer() {
@@ -77,39 +61,28 @@ void Server::startServer() {
     int newSocket = 0;
 
     while(1) {
-        std::cout << Log::Info() << "Waiting For Messages\n";
+            if((newSocket = accept(serverFD, (struct sockaddr *)&address, (socklen_t*)&addressLength)) < 0) {
+                std::cout << Log::Error() << "Failed to accept incoming Socket connection\n";
+            }
 
-        // Accept first incoming connection
-        if ((newSocket = accept(serverFD, (struct sockaddr *)&address, (socklen_t*)&addressLength)) < 0) {
-            std::cout << Log::Error() << "Could not accept data from client!\n";
-            exit(EXIT_FAILURE);
-        }
-
-        std::cout << Log::Info() << "Accepted Socket\n";
-
-        // Read any data sent from new client socket
-        std::string clientData = readDataFromClient(newSocket);
-
-        // Only evaluate if there is data from client
-        if(clientData.length() > 0) {
-            std::cout << Log::Info() << clientData << "\n"; 
-
-            // Accept exit request from client
-            if(clientData.substr(0,4) == "exit") {
-                std::cout << Log::Info() << "Closing socket!\n";
-                writeDataToClient(newSocket, std::string("Closing Socket"));
-                close(newSocket);
-                break;
-            } 
+            std::cout << Log::Info() << "New Connection: [Socket=" << newSocket << "] [IP=" << inet_ntoa(address.sin_addr) << "] [PORT=" 
+                << ntohs(address.sin_port) << "]\n";
             
-            // Write data to client to indicate that data was received
-            writeDataToClient(newSocket, std::string("Received Data"));
+            std::string buffer = readDataFromClient(newSocket);
 
-            std::cout << Log::Info() << "Done Receiving Messsages\n";
-        }
+            if(buffer == "exit") {
+                shutdownServer();
+            }
 
-        // Close connection with client socket
-        close(newSocket);
+            writeDataToClient(newSocket, "Hello World!");
+
+            close(newSocket);
     }
 
+}
+
+void Server::shutdownServer() {
+    close(serverFD);
+    std::cout << Log::Warning() << "Shutting Down Server\n";
+    exit(EXIT_SUCCESS);
 }

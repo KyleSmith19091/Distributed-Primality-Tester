@@ -20,6 +20,8 @@ class Client{
 
         int clientSocket;
         struct sockaddr_in serverAddress;
+
+        void createSocket();
         void connectToServer();
 
     public:

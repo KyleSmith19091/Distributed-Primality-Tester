@@ -14,11 +14,16 @@ int main(){
         std::getline(std::cin, input);
 
         if(input.length() > 0) {
-            client.sendMessageToServer(std::string(input));
+            client.sendMessageToServer(input);
+            std::string buffer = client.readMessageFromServer();
+
+            if(buffer.length() == 0) {
+                exit(0);
+            }
+            //client.readMessageFromServer();
         } else {
             std::cout << "Invalid Input\n";
         }
-
     }
 
 
